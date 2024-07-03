@@ -1,4 +1,20 @@
+from datetime import datetime
+
 from classes import ContaCorrente, Deposito, PessoaFisica, Saque
+
+
+def log_transacao(func):
+    def envelope(*args, **kwargs):
+        resultado = func(*args, **kwargs)
+        data_hora = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+        with open("log.txt", mode="w", encoding="utf-8") as arquivo:
+            arquivo.write(
+                f"[{data_hora}] Função '{func.__name__}' executada com argumentos {args} e {kwargs}. Retornou {resultado}\n"
+            )
+        return resultado
+
+    return envelope
+
 
 # Funções auxiliares
 def validar_usuario(lista, cpf_desejado):
@@ -8,6 +24,7 @@ def validar_usuario(lista, cpf_desejado):
     print("Usuário não encontrado, retornando ao menu!")
     return None
 
+
 def listar_contas(contas):
     if not contas:
         print("Não há contas cadastradas.")
@@ -15,7 +32,9 @@ def listar_contas(contas):
         for conta in contas:
             print(conta)
 
+
 # Sistema bancário
+@log_transacao
 def criar_usuario():
     cpf = input("Digite seu CPF (apenas números): ")
     nome = input("Digite seu nome: ")
@@ -25,6 +44,8 @@ def criar_usuario():
     usuarios.append(novo_usuario)
     print("Usuário criado com sucesso!")
 
+
+@log_transacao
 def criar_conta():
     cpf = input("Digite seu CPF (apenas números): ")
     usuario = validar_usuario(usuarios, cpf)
@@ -38,21 +59,14 @@ def criar_conta():
             contas.append(nova_conta)
             print("Conta criada com sucesso!")
 
-def depositar():
-    cpf = input("Digite seu CPF (apenas números): ")
-    usuario = validar_usuario(usuarios, cpf)
-    if usuario:
-        valor = float(input("Qual valor que deseja depositar?: "))
-        conta = usuario.contas[0]
-        Deposito(valor).registrar(conta)
 
-def sacar():
+@log_transacao
+def sacar_depositar(fuction, text):
     cpf = input("Digite seu CPF (apenas números): ")
     usuario = validar_usuario(usuarios, cpf)
     if usuario:
-        valor = float(input("Qual valor que deseja sacar?: "))
-        conta = usuario.contas[0]
-        Saque(valor).registrar(conta)
+        fuction(float(input(text))).registrar(usuario.contas[0])
+
 
 def extrato():
     cpf = input("Digite seu CPF (apenas números): ")
@@ -61,16 +75,21 @@ def extrato():
         conta = usuario.contas[0]
         print("\n=== Extrato ===")
         for transacao in conta.historico.transacoes:
-            print(f"{transacao['data']} - {transacao['tipo']} - R${transacao['valor']:.2f}")
+            print(
+                f"{transacao['data']} - {transacao['tipo']} - R${transacao['valor']:.2f}"
+            )
         print(f"Saldo atual: R${conta.saldo:.2f}")
+
 
 def menu():
     while True:
-        opcao = input("\n[D] Depositar\n[S] Sacar\n[U] Criar Usuário\n[C] Criar Conta\n[L] Listar Contas\n[E] Extrato\n[Q] Sair\nSelecione a opção desejada: ").upper()
+        opcao = input(
+            "\n[D] Depositar\n[S] Sacar\n[U] Criar Usuário\n[C] Criar Conta\n[L] Listar Contas\n[E] Extrato\n[Q] Sair\nSelecione a opção desejada: "
+        ).upper()
         if opcao == "D":
-            depositar()
+            sacar_depositar(fuction=Deposito, text="Qual valor que deseja depositar?: ")
         elif opcao == "S":
-            sacar()
+            sacar_depositar(fuction=Saque, text="Qual valor que deseja sacar?: ")
         elif opcao == "U":
             criar_usuario()
         elif opcao == "C":
@@ -84,6 +103,7 @@ def menu():
             break
         else:
             print("Opção inválida! Por favor, selecione novamente a opção desejada.")
+
 
 # Lista de usuários e contas
 usuarios = []

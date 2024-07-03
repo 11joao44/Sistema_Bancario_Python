@@ -1,5 +1,8 @@
-from datetime import datetime
 from abc import ABC, abstractmethod
+from datetime import datetime
+
+from system_bank import log_transacao
+
 
 class Cliente:
     def __init__(self, nome, cpf, data_nascimento, endereco):
@@ -12,9 +15,11 @@ class Cliente:
     def adicionar_conta(self, conta):
         self.contas.append(conta)
 
+
 class PessoaFisica(Cliente):
     def __init__(self, nome, cpf, data_nascimento, endereco):
         super().__init__(nome, cpf, data_nascimento, endereco)
+
 
 class Conta(ABC):
     def __init__(self, numero, cliente):
@@ -31,10 +36,11 @@ class Conta(ABC):
     def depositar(self, valor):
         if valor > 0:
             self._saldo += valor
-            self._historico.adicionar_transacao(Deposito(valor))
             print(f"\n=== Depósito de R${valor:.2f} realizado com sucesso! ===")
+            return True
         else:
             print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
+            return False
 
     @property
     def saldo(self):
@@ -56,6 +62,7 @@ class Conta(ABC):
     def historico(self):
         return self._historico
 
+
 class ContaCorrente(Conta):
     def __init__(self, numero, cliente, limite=500, limite_saque=3):
         super().__init__(numero, cliente)
@@ -63,7 +70,13 @@ class ContaCorrente(Conta):
         self.limite_saque = limite_saque
 
     def sacar(self, valor):
-        numero_saques = len([transacao for transacao in self.historico.transacoes if transacao['tipo'] == 'Saque'])
+        numero_saques = len(
+            [
+                transacao
+                for transacao in self.historico.transacoes
+                if transacao["tipo"] == "Saque"
+            ]
+        )
         excedeu_saldo = valor > self.saldo
         excedeu_limite = valor > self.limite
         excedeu_saque = numero_saques >= self.limite_saque
@@ -78,13 +91,15 @@ class ContaCorrente(Conta):
             print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
         else:
             self._saldo -= valor
-            self._historico.adicionar_transacao(Saque(valor))
             print(f"\n=== Saque de R${valor:.2f} realizado com sucesso! ===")
             return True
         return False
 
     def __str__(self):
-        return f"Agência: {self.agencia}, C/C: {self.numero}, Titular: {self.cliente.nome}"
+        return (
+            f"Agência: {self.agencia}, C/C: {self.numero}, Titular: {self.cliente.nome}"
+        )
+
 
 class Historico:
     def __init__(self):
@@ -95,11 +110,14 @@ class Historico:
         return self._transacoes
 
     def adicionar_transacao(self, transacao):
-        self._transacoes.append({
-            "tipo": transacao.__class__.__name__,
-            "valor": transacao.valor,
-            "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-        })
+        self._transacoes.append(
+            {
+                "tipo": transacao.__class__.__name__,
+                "valor": transacao.valor,
+                "data": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+            }
+        )
+
 
 class Transacao(ABC):
     @property
@@ -111,6 +129,8 @@ class Transacao(ABC):
     def registrar(self, conta):
         pass
 
+
+@log_transacao
 class Saque(Transacao):
     def __init__(self, valor):
         self._valor = valor
@@ -124,6 +144,8 @@ class Saque(Transacao):
         if sucesso_transacao:
             conta.historico.adicionar_transacao(self)
 
+
+@log_transacao
 class Deposito(Transacao):
     def __init__(self, valor):
         self._valor = valor
